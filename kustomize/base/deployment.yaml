@@ -1,0 +1,210 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    configmap.reloader.stakater.com/reload: "backend"
+    secret.reloader.stakater.com/reload: "backend"
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    app-service: gunicorn
+  name: backend-gunicorn
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app-service: backend-gunicorn
+  template:
+    metadata:
+      labels:
+        sidecar.istio.io/force-inject: "true"
+        app-service: backend-gunicorn
+    spec:
+      containers:
+        - image: backend_main
+          imagePullPolicy: IfNotPresent
+          name: backend-gunicorn
+          envFrom:
+            - secretRef:
+                name: backend
+            - configMapRef:
+                name: backend
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 5
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "4"
+          command:
+            - gunicorn
+            - "--env"
+            - "DJANGO_SETTINGS_MODULE=config.settings"
+            - "--bind"
+            - "0.0.0.0:8000"
+            - "--timeout"
+            - "30"
+            - "--log-level"
+            - "debug"
+            - "--workers"
+            - "3"
+            - "--error-logfile"
+            - "-"
+            - "--access-logfile"
+            - "-"
+            - "config.wsgi"
+      terminationGracePeriodSeconds: 60
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    configmap.reloader.stakater.com/reload: "backend"
+    secret.reloader.stakater.com/reload: "backend"
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    app-service: celery
+  name: backend-worker
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app-service: backend-worker
+  template:
+    metadata:
+      labels:
+        sidecar.istio.io/force-inject: "true"
+        app-service: backend-worker
+    spec:
+      containers:
+        - image: backend_main
+          imagePullPolicy: IfNotPresent
+          name: backend-worker
+          envFrom:
+            - secretRef:
+                name: backend
+            - configMapRef:
+                name: backend
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "200m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          command:
+            - "celery"
+            - "-A"
+            - "config.celery"
+            - "worker"
+            - "--loglevel=DEBUG"
+            - "--concurrency=1"
+            - "-n=1"
+      terminationGracePeriodSeconds: 60
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    configmap.reloader.stakater.com/reload: "backend"
+    secret.reloader.stakater.com/reload: "backend"
+    argocd.argoproj.io/sync-wave: "3"
+  labels:
+    app-service: celery-beat
+  name: backend-beat
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app-service: backend-beat
+  template:
+    metadata:
+      labels:
+        sidecar.istio.io/force-inject: "true"
+        app-service: backend-beat
+    spec:
+      containers:
+        - image: backend_main
+          imagePullPolicy: IfNotPresent
+          name: backend-beat
+          envFrom:
+            - secretRef:
+                name: backend
+            - configMapRef:
+                name: backend
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "200m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          command:
+            - "celery"
+            - "-A"
+            - "config.celery"
+            - "beat"
+            - "--loglevel=INFO"
+      terminationGracePeriodSeconds: 60
+      imagePullSecrets:
+        - name: regcred
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-nginx
+  labels:
+    app-service: nginx
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app-service: backend-nginx
+  template:
+    metadata:
+      labels:
+        sidecar.istio.io/force-inject: "true"
+        app-service: backend-nginx
+    spec:
+      containers:
+        - image: backend_nginx
+          imagePullPolicy: IfNotPresent
+          name: backend-nginx
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+      terminationGracePeriodSeconds: 10
+      imagePullSecrets:
+        - name: regcred

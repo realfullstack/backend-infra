@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-server-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: "letsencrypt-prod-nginx"
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  tls:
+    - hosts:
+        - api.realfullstack.com
+      secretName: backend-nginx-tls-key
+  rules:
+    - host: api.realfullstack.com
+      http:
+        paths:
+          - path: /static/
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-nginx
+                port:
+                  name: http
+          - path: /media/
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-nginx
+                port:
+                  name: http
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-gunicorn
+                port:
+                  name: http

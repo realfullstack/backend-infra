@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-gunicorn
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http
+  selector:
+    app-service: backend-gunicorn
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-nginx
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+  selector:
+    app-service: backend-nginx
+  type: ClusterIP

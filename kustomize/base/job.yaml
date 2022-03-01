@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+  name: backend-migrations
+spec:
+  template:
+    spec:
+      containers:
+        - image: backend_main
+          imagePullPolicy: IfNotPresent
+          name: backend
+          envFrom:
+            - secretRef:
+                name: backend
+            - configMapRef:
+                name: backend
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"
+          command: ["/bin/sh"]
+          args:
+            - -c
+            - >-
+                /usr/local/bin/python manage.py utils_provision_infra --celery_vhost --database_name &&
+                /usr/local/bin/python manage.py migrate --no-input
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: regcred
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 2
