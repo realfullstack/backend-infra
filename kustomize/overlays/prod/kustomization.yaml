@@ -19,9 +19,9 @@ patches:
 images:
 - name: backend_main
   newName: ghcr.io/realfullstack/backend/main_dev
-  newTag: sha-281b720
+  newTag: sha-d54cd4a
 - name: backend_nginx
   newName: ghcr.io/realfullstack/backend/nginx
-  newTag: sha-281b720
+  newTag: sha-d54cd4a
 resources:
 - ../../base
